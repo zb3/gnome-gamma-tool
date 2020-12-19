@@ -1,9 +1,9 @@
 # gnome-gamma-tool
 
-A command-line tool that let's you change gamma, contrast and brightness in GNOME 3 in a persistent manner by creating a color profile with the VCGT table.
+A command-line tool that let's you change gamma, contrast and brightness in GNOME 3 and Cinnamon in a persistent manner by creating a color profile with the VCGT table.
 
 ## Disclaimer
-**This only works with GNOME**. Tested on Fedora 33 with GNOME 3.38, it might not work with older/newer versions, albeit profiles already generated should continue to work.
+**This only works with GNOME and Cinnamon**. Tested on Fedora 33 with GNOME 3.38 and Cinnamon 4.6.7, it might not work with older/newer versions, albeit profiles already generated should continue to work.
 
 This is rather hacky, color profiles were not meant to be used like that. But I think the use case is rare enough to justify this. After all, if your monitor doesn't let you change the gamma, isn't that a problem with the monitor?
 

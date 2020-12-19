@@ -268,7 +268,7 @@ def main():
     base_profile = mgr.get_current_profile()
 
     if not base_profile:
-        print("No default profile, trying sRGB! (this is a bug)")
+        print("No default profile, using sRGB")
         base_profile = mgr.create_and_set_sRGB_profile()
 
     base_profile_path = base_profile.get_filename()
