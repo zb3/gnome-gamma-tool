@@ -184,14 +184,25 @@ class ProfileMgr:
     def __init__(self):
         self.cd = Colord.Client()
         self.cd.connect_sync()
-        self.devices = self.cd.get_devices_sync()
+        self.devices = self.get_display_devices()
+
+    def get_display_devices(self):
+        all_devices = self.cd.get_devices_sync()
+        display_devices = []
+
+        # we can't retrieve the kind without connecting first
+        for device in all_devices:
+            device.connect_sync()
+            if device.get_kind() == Colord.DeviceKind.DISPLAY:
+                display_devices.append(device)
+
+        return display_devices
 
     def get_device_count(self):
         return len(self.devices)
 
     def connect(self, device_idx):
         self.cdd = self.devices[device_idx]
-        self.cdd.connect_sync()
 
     def get_current_profile(self):
         profiles = self.cdd.get_profiles()
