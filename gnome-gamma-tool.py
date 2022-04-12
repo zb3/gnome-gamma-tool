@@ -204,8 +204,9 @@ class ProfileMgr:
         return profile
 
     def remove_profile(self, profile):
-        # colord can handle this properly
-        os.remove(profile.get_filename())
+        if profile.get_filename():
+            # colord can handle this properly
+            os.remove(profile.get_filename())
 
     def clone_profile_data(self, profile):
         return profile.load_icc(0)
@@ -271,9 +272,9 @@ def main():
         print("No default profile, using sRGB")
         base_profile = mgr.create_and_set_sRGB_profile()
 
-    base_profile_path = base_profile.get_filename()
-    our_profile = OUR_PREFIX in base_profile_path
-    print("Current profile is", base_profile_path)
+    base_profile_info = base_profile.get_filename() or base_profile.get_id()
+    our_profile = OUR_PREFIX in base_profile_info
+    print("Current profile is", base_profile_info)
 
     if args.remove:
         if our_profile:
