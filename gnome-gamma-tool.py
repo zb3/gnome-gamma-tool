@@ -5,6 +5,8 @@ import gi
 import sys
 import tty
 import uuid
+import fcntl
+import atexit
 import select
 import termios
 import tempfile
@@ -16,6 +18,7 @@ from gi.repository import GLib, Colord, Gio
 
 N_SAMPLES = 256
 OUR_PREFIX = "gnome-gamma-tool-"
+INSTANCE_LOCK_FILE = "/tmp/.gnome-gamma-tool.lock"
 
 
 def linear_map(x, smin, smax, dmin, dmax):
@@ -148,6 +151,19 @@ examples:
     return args, " ".join(arg_sig_parts)
 
 
+def ensure_not_running():
+    fp = os.open(INSTANCE_LOCK_FILE, os.O_WRONLY | os.O_CREAT)
+
+    try:
+        fcntl.lockf(fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError:
+        return False
+
+    atexit.register(lambda: os.remove(INSTANCE_LOCK_FILE))
+
+    return True
+
+
 def ask_new_settings_ok():
     fd = sys.stdin.fileno()
     old_attr = termios.tcgetattr(fd)
@@ -260,6 +276,9 @@ class ProfileMgr:
 
 def main():
     args, arg_signature = parse_args()
+
+    if args.yes and not ensure_not_running():
+        exit("gnome-gamma-tool is already running")
 
     mgr = ProfileMgr()
 
