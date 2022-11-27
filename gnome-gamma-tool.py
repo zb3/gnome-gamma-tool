@@ -12,7 +12,13 @@ import termios
 import tempfile
 import argparse
 
-gi.require_version("Colord", "1.0")
+try:
+    gi.require_version("Colord", "1.0")
+except ValueError:
+    print("Colord bindings not available!", file=sys.stderr)
+    print("On debian/ubuntu based systems, you might need to run this first:", file=sys.stderr)
+    print("sudo apt install gir1.2-colord-1.0")
+    exit(1)
 
 from gi.repository import GLib, Colord, Gio
 
