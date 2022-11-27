@@ -231,9 +231,13 @@ class ProfileMgr:
         return profile
 
     def remove_profile(self, profile):
-        if profile.get_filename():
-            # colord can handle this properly
-            os.remove(profile.get_filename())
+        fname = profile.get_filename()
+
+        if not self.cdd.remove_profile_sync(profile):
+            print('WARNING: could not remove profile from device, aborting')
+
+        elif fname:
+            os.remove(fname)
 
     def clone_profile_data(self, profile):
         return profile.load_icc(0)
