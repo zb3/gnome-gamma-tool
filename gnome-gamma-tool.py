@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import time
 import gi
 import sys
 import tty
@@ -9,7 +10,6 @@ import fcntl
 import atexit
 import select
 import termios
-import tempfile
 import argparse
 
 try:
@@ -20,11 +20,13 @@ except ValueError:
     print("sudo apt install gir1.2-colord-1.0")
     exit(1)
 
-from gi.repository import GLib, Colord, Gio
+from gi.repository import GObject, GLib, Colord, Gio
 
 N_SAMPLES = 256
 OUR_PREFIX = "gnome-gamma-tool-"
 INSTANCE_LOCK_FILE = "/tmp/.gnome-gamma-tool.lock"
+TIMEOUT = 4
+POLL_INTERVAL = 0.01
 
 
 def linear_map(x, smin, smax, dmin, dmax):
@@ -207,6 +209,9 @@ class ProfileMgr:
         self.cd = Colord.Client()
         self.cd.connect_sync()
         self.devices = self.get_display_devices()
+        self.desired_profile_filename = None
+        self.received_profile = None
+        super(GObject.Object, self.cd).connect('profile-added', self.on_profile_added)
 
     def get_display_devices(self):
         all_devices = self.cd.get_devices_sync()
@@ -247,17 +252,50 @@ class ProfileMgr:
 
     def clone_profile_data(self, profile):
         return profile.load_icc(0)
+    
+    def on_profile_added(self, client, profile):
+        profile.connect_sync()
+        if profile.get_filename() == self.desired_profile_filename:
+            self.received_profile = profile
 
     def new_profile_with_name(self, profile_data, new_name):
-        tmp_path = os.path.join(tempfile.gettempdir(), new_name)
+        # import_profile_sync turned out to be unreliable as the newly
+        # written profile is sometimes not detected when written directly,
+        # so we first write to a temp file, then rename it
+
+        new_profile_path = os.path.join(GLib.get_user_data_dir(), 'icc', new_name)
+        tmp_profile_path = new_profile_path + '-ggtmp'
+
         profile_data.save_file(
-            Gio.File.new_for_path(tmp_path), Colord.IccSaveFlags.NONE, None
+            Gio.File.new_for_path(tmp_profile_path), Colord.IccSaveFlags.NONE, None
         )
 
-        try:
-            new_profile = self.cd.import_profile_sync(Gio.File.new_for_path(tmp_path))
-        finally:
-            os.remove(tmp_path)
+        self.received_profile = None
+        self.desired_profile_filename = new_profile_path
+
+        # at this point the profile "should" be detected, but it sometimes isn't
+        # and we need to rename the file to make it work
+        os.rename(tmp_profile_path, new_profile_path)
+
+        # as the profile is not immediately added, we need to catch the signal
+        # the easiest way to do so seems to be to manually iterate the context
+
+        ctx = GLib.MainContext().default()
+        new_profile = None
+        deadline = time.time() + TIMEOUT
+
+        while time.time() < deadline:
+            ctx.iteration(False)
+
+            if self.received_profile:
+                new_profile = self.received_profile
+                self.received_profile = None
+                break
+
+            time.sleep(POLL_INTERVAL)
+        
+        if not new_profile:
+            raise Exception('profile was not added in time')
 
         self.cdd.add_profile_sync(Colord.DeviceRelation.HARD, new_profile)
         new_profile.connect_sync()
