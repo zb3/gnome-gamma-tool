@@ -378,7 +378,7 @@ def main():
         )
         profile_data.set_vcgt(vcgt)
 
-        new_profile = mgr.new_profile_with_name(profile_data, OUR_PREFIX + unique_id)
+        new_profile = mgr.new_profile_with_name(profile_data, OUR_PREFIX + unique_id + '.icc')
         print("New profile is", new_profile.get_filename())
 
         mgr.make_profile_default(new_profile)
