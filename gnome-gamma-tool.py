@@ -252,7 +252,7 @@ class ProfileMgr:
 
     def clone_profile_data(self, profile):
         return profile.load_icc(0)
-    
+
     def on_profile_added(self, client, profile):
         profile.connect_sync()
         if profile.get_filename() == self.desired_profile_filename:
@@ -293,7 +293,7 @@ class ProfileMgr:
                 break
 
             time.sleep(POLL_INTERVAL)
-        
+
         if not new_profile:
             raise Exception('profile was not added in time')
 

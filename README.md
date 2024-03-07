@@ -87,7 +87,7 @@ And... that's not all, because these also work per individual channels, thanks t
 ```
 ./gnome-gamma-tool.py -b 1:2:1
 ```
-The above gets transformed into `0.5:1:0.5` first, and technically it makes your screen less red and less blue, but practically it makes the screen appear more green. What a useful feature, don't you think so? 
+The above gets transformed into `0.5:1:0.5` first, and technically it makes your screen less red and less blue, but practically it makes the screen appear more green. What a useful feature, don't you think so?
 
 
 
@@ -111,7 +111,7 @@ That method is normally called by the `gsd-color` daemon (indirectly), and curre
 
 Now, it might seem that the obvious solution here is to patch `gsd-color` to also take other things (like a GSettings property) into account, so you could tweak the gamma via the `gsettings` command. This would also open the possibility of adding a GUI to the Display panel later.
 
-Yet again, this is not how gnome-gamma-tool operates, because patching `gsd-color` only makes sense if this patch is to be merged upstream. Otherwise it's completely unacceptable for me (and probably for you too) to have to apply custom patches and rebuild parts of GNOME. That's why gnome-gamma-tool installs a color profile with the correct "VCGT" table set up. 
+Yet again, this is not how gnome-gamma-tool operates, because patching `gsd-color` only makes sense if this patch is to be merged upstream. Otherwise it's completely unacceptable for me (and probably for you too) to have to apply custom patches and rebuild parts of GNOME. That's why gnome-gamma-tool installs a color profile with the correct "VCGT" table set up.
 
 `gsd-color` doesn't manage color profiles, it observes them using the API provided by colord. To make a profile recognized by `gsd-color`, these things must be done:
 * color profiles must be enabled for a given device
@@ -126,5 +126,3 @@ All those steps are performed using the API exposed by colord via D-Bus. gnome-g
 What is this "VCGT" then? The VCGT (Video Card Gamma Table) basically maps color channel (R, G and B) values. Like if a channel has value `X` then the VCGT specifies that this should be translated to `Y`. Of course not every input value has a VCGT entry, that table has just 256 entries and the values are interpolated (but this is not done by gnome-gamma-tool).
 
 VCGT makes it possible to change gamma (via exponentiation), contrast and brightness, but it's not possible to change hue this way, because one channel can't affect any other.
-
-
