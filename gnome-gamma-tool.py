@@ -252,7 +252,7 @@ class ProfileMgr:
 
     def clone_profile_data(self, profile):
         return profile.load_icc(0)
-    
+
     def on_profile_added(self, client, profile):
         profile.connect_sync()
         if profile.get_filename() == self.desired_profile_filename:
@@ -293,7 +293,7 @@ class ProfileMgr:
                 break
 
             time.sleep(POLL_INTERVAL)
-        
+
         if not new_profile:
             raise Exception('profile was not added in time')
 
@@ -378,7 +378,7 @@ def main():
         )
         profile_data.set_vcgt(vcgt)
 
-        new_profile = mgr.new_profile_with_name(profile_data, OUR_PREFIX + unique_id)
+        new_profile = mgr.new_profile_with_name(profile_data, OUR_PREFIX + unique_id + '.icc')
         print("New profile is", new_profile.get_filename())
 
         mgr.make_profile_default(new_profile)
