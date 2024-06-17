@@ -97,6 +97,10 @@ You can specify the display *index* using the `-d` option (the first one has ind
 ./gnome-gamma-tool.py -d 1 -g 0.7
 ```
 
+You can also apply changes to all displays using the `-a` option:
+```
+./gnome-gamma-tool.py -a -g 0.7
+```
 
 ## How it works
 
