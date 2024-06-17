@@ -93,6 +93,11 @@ examples:
     parser.add_argument(
         "-d", "--display", help="display index (0 is default)", type=int, default=0
     )
+
+    parser.add_argument(
+        "-a", "--all-displays", help="apply to all displays", action="store_true"
+    )
+
     parser.add_argument(
         "-g", "--gamma", help="target gamma correction (1 is neutral)", default="1"
     )
@@ -334,64 +339,65 @@ def main():
     if args.display >= display_count:
         exit(f"No such display, found {display_count} displays.")
 
-    mgr.connect(args.display)
+    for display_idx in range(0, display_count if args.all_displays else 1):
+        mgr.connect(display_idx if args.all_displays else args.display)
 
-    if not mgr.is_device_enabled():
-        # but 'd we have the default edid profile?
+        if not mgr.is_device_enabled():
+            # but 'd we have the default edid profile?
 
-        print("Enabling color management for device")
-        mgr.set_device_enabled(True)
+            print("Enabling color management for device")
+            mgr.set_device_enabled(True)
 
-    # we get the default one, even if some ggt profiles exist
-    # this is to that you can have more than one ggt profile
-    base_profile = mgr.get_current_profile()
+        # we get the default one, even if some ggt profiles exist
+        # this is to that you can have more than one ggt profile
+        base_profile = mgr.get_current_profile()
 
-    if not base_profile:
-        print("No default profile, using sRGB")
-        base_profile = mgr.create_and_set_sRGB_profile()
+        if not base_profile:
+            print("No default profile, using sRGB")
+            base_profile = mgr.create_and_set_sRGB_profile()
 
-    base_profile_info = base_profile.get_filename() or base_profile.get_id()
-    our_profile = OUR_PREFIX in base_profile_info
-    print("Current profile is", base_profile_info)
+        base_profile_info = base_profile.get_filename() or base_profile.get_id()
+        our_profile = OUR_PREFIX in base_profile_info
+        print("Current profile is", base_profile_info)
 
-    if args.remove:
-        if our_profile:
-            print("Removing profile")
-            mgr.remove_profile(base_profile)
+        if args.remove:
+            if our_profile:
+                print("Removing profile")
+                mgr.remove_profile(base_profile)
 
-    else:
-        profile_data = mgr.clone_profile_data(base_profile)
+        else:
+            profile_data = mgr.clone_profile_data(base_profile)
 
-        title = "gamma-tool: %s" % arg_signature
-        profile_data.set_description("", title)
-        profile_data.set_model("", title)
+            title = "gamma-tool: %s" % arg_signature
+            profile_data.set_description("", title)
+            profile_data.set_model("", title)
 
-        unique_id = str(uuid.uuid4())
-        profile_data.add_metadata("uuid", unique_id)  # to make checksum unique
+            unique_id = str(uuid.uuid4())
+            profile_data.add_metadata("uuid", unique_id)  # to make checksum unique
 
-        vcgt = generate_vcgt(
-            args.gamma,
-            args.temperature,
-            args.contrast,
-            args.min_brightness,
-            args.brightness,
-        )
-        profile_data.set_vcgt(vcgt)
+            vcgt = generate_vcgt(
+                args.gamma,
+                args.temperature,
+                args.contrast,
+                args.min_brightness,
+                args.brightness,
+            )
+            profile_data.set_vcgt(vcgt)
 
-        new_profile = mgr.new_profile_with_name(profile_data, OUR_PREFIX + unique_id + '.icc')
-        print("New profile is", new_profile.get_filename())
+            new_profile = mgr.new_profile_with_name(profile_data, OUR_PREFIX + unique_id + '.icc')
+            print("New profile is", new_profile.get_filename())
 
-        mgr.make_profile_default(new_profile)
+            mgr.make_profile_default(new_profile)
 
-        if sys.stdout.isatty() and not args.yes and not ask_new_settings_ok():
-            print("Reverting settings")
-            mgr.make_profile_default(base_profile)
-            mgr.remove_profile(new_profile)
-            mgr.make_profile_default(base_profile)
+            if sys.stdout.isatty() and not args.yes and not ask_new_settings_ok():
+                print("Reverting settings")
+                mgr.make_profile_default(base_profile)
+                mgr.remove_profile(new_profile)
+                mgr.make_profile_default(base_profile)
 
-        elif our_profile:
-            print("Removing old profile")
-            mgr.remove_profile(base_profile)
+            elif our_profile:
+                print("Removing old profile")
+                mgr.remove_profile(base_profile)
 
 
 if __name__ == "__main__":
