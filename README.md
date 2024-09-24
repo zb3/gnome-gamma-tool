@@ -20,6 +20,10 @@ cd gnome-gamma-tool
 ```
 sudo apt install gir1.2-colord-1.0
 ```
+for OpenSUSE, you might need to install the `typelib-1_0-Colord-1_0` package instead:
+```
+sudo zypper install typelib-1_0-Colord-1_0
+```
 
 Then you can invoke the tool like this:
 ```
