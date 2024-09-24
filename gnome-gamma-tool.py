@@ -18,6 +18,8 @@ except ValueError:
     print("Colord bindings not available!", file=sys.stderr)
     print("On debian/ubuntu based systems, you might need to run this first:", file=sys.stderr)
     print("sudo apt install gir1.2-colord-1.0")
+    print("If you're using OpenSUSE, you might need to run this instead:", file=sys.stderr)
+    print("sudo zypper install typelib-1_0-Colord-1_0")
     exit(1)
 
 from gi.repository import GObject, GLib, Colord, Gio
