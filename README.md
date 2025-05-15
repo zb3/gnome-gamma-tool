@@ -3,11 +3,13 @@
 A command-line tool that let's you change gamma, contrast and brightness in GNOME and Cinnamon in a persistent manner by creating a color profile with the VCGT table.
 
 ## Disclaimer
-**This only works with GNOME and Cinnamon**. Tested on Fedora 36 with GNOME 42 and Cinnamon, it might not work with older/newer versions, albeit profiles already generated should continue to work.
+**This only works with GNOME and Cinnamon**. Tested on Fedora with GNOME 42-48 and Cinnamon, it might not work with older/newer versions, albeit profiles already generated should continue to work.
 
 This is rather hacky, color profiles were not meant to be used like that. But I think the use case is rare enough to justify this. After all, if your monitor doesn't let you change the gamma, isn't that a problem with the monitor?
 
 See [How it works](#how-it-works) for a more detailed description.
+
+**Note:** it's not possible to change the screen saturation or hue (due to VCGT limitations), but you can try using [gnome-saturation-extension](https://github.com/zb3/gnome-saturation-extension) (which has its drawbacks though).
 
 ## Usage
 There's no need to install this, just clone this repository:
