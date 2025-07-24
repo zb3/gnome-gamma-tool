@@ -26,6 +26,7 @@ for OpenSUSE, you might need to install the `typelib-1_0-Colord-1_0` package ins
 ```
 sudo zypper install typelib-1_0-Colord-1_0
 ```
+if you're using NixOS, check [this comment](https://github.com/zb3/gnome-gamma-tool/issues/28#issuecomment-3112277504)
 
 Then you can invoke the tool like this:
 ```
