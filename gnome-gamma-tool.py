@@ -138,6 +138,20 @@ examples:
         "-y", "--yes", help="don't ask whether new settings are ok", action="store_true"
     )
 
+    parser.add_argument(
+        "-o",
+        "--out-file",
+        help="create an ICC file without applying it",
+        default=None,
+    )
+
+    parser.add_argument(
+        "-i",
+        "--in-file",
+        help="use this ICC file as the base profile (usable only with -o/--out-file)",
+        default=None,
+    )
+
     if len(sys.argv) < 2:
         parser.print_help()
         sys.exit(2)
@@ -329,11 +343,51 @@ class ProfileMgr:
         self.cdd.set_enabled_sync(enabled)
 
 
+def create_profile_data(profile_data, arg_signature, args):
+    if not profile_data:
+        profile_data = Colord.Icc.new()
+        profile_data.create_default()
+
+    title = "gamma-tool: %s" % arg_signature
+    profile_data.set_description("", title)
+    profile_data.set_model("", title)
+
+    unique_id = str(uuid.uuid4())
+    profile_data.add_metadata("uuid", unique_id)  # to make checksum unique
+
+    vcgt = generate_vcgt(
+        args.gamma,
+        args.temperature,
+        args.contrast,
+        args.min_brightness,
+        args.brightness,
+    )
+    profile_data.set_vcgt(vcgt)
+
+    return profile_data, unique_id
+
+
 def main():
     args, arg_signature = parse_args()
 
     if args.yes and not ensure_not_running():
         exit("gnome-gamma-tool is already running")
+
+    if args.out_file:
+        print("Creating profile...")
+        profile_data = None
+        if args.in_file:
+            print(f"Using {args.in_file} as base profile...")
+            icc_file = Gio.File.new_for_path(args.in_file)
+            profile_data = Colord.Icc.new()
+            Colord.Icc.load_file(profile_data, icc_file, Colord.IccLoadFlags.ALL, None)
+
+        profile_data, _ = create_profile_data(profile_data, arg_signature, args)
+        profile_data.save_file(
+            Gio.File.new_for_path(args.out_file), Colord.IccSaveFlags.NONE, None
+        )
+        print(f"Profile saved to {args.out_file}")
+        return
 
     mgr = ProfileMgr()
 
@@ -368,23 +422,7 @@ def main():
                 mgr.remove_profile(base_profile)
 
         else:
-            profile_data = mgr.clone_profile_data(base_profile)
-
-            title = "gamma-tool: %s" % arg_signature
-            profile_data.set_description("", title)
-            profile_data.set_model("", title)
-
-            unique_id = str(uuid.uuid4())
-            profile_data.add_metadata("uuid", unique_id)  # to make checksum unique
-
-            vcgt = generate_vcgt(
-                args.gamma,
-                args.temperature,
-                args.contrast,
-                args.min_brightness,
-                args.brightness,
-            )
-            profile_data.set_vcgt(vcgt)
+            profile_data, unique_id = create_profile_data(base_profile.load_icc(0), arg_signature, args)
 
             new_profile = mgr.new_profile_with_name(profile_data, OUR_PREFIX + unique_id + '.icc')
             print("New profile is", new_profile.get_filename())

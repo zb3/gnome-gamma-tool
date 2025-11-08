@@ -97,7 +97,6 @@ And... that's not all, because these also work per individual channels, thanks t
 The above gets transformed into `0.5:1:0.5` first, and technically it makes your screen less red and less blue, but practically it makes the screen appear more green. What a useful feature, don't you think so?
 
 
-
 ### If you have multiple displays
 You can specify the display *index* using the `-d` option (the first one has index `0` but that's the default one so you don't need to use this argument in this case...). The order of displays is the same as in the `Settings -> Color` panel. Here comes the example:
 ```
@@ -107,6 +106,29 @@ You can specify the display *index* using the `-d` option (the first one has ind
 You can also apply changes to all displays using the `-a` option:
 ```
 ./gnome-gamma-tool.py -a -g 0.7
+```
+
+### Exporting to a file
+
+If you just want to create an ICC profile with the proper VCGT table but without interacting with your current configuration, you can use the `-o`/`--out-file` argument. Note that it will not load your current profile, so the output will be a sRGB profile unless you use the `-i`/`--in-file` argument to specify the base profile.
+
+You can then import and apply it using a tool like `colormgr`.
+
+```
+# Create myprofile.icc file
+python3 ./gnome-gamma-tool.py --min-brightness 0.05 --brightness 0.95 --out-file myprofile.icc
+
+# This command will print Device ID, save it
+colormgr get-devices
+
+# This command will print Profile ID, save it
+colormgr import-profile myprofile.icc
+
+# This command will affect colors immediately
+colormgr device-add-profile $displayId $profileId
+
+# This command will remove imported profile and revert colors to original state immediately.
+colormgr delete-profile $profileId
 ```
 
 ## How it works
