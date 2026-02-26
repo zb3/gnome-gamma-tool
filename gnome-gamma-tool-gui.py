@@ -97,7 +97,7 @@ class ProfileMgr:
         self.devices = self._get_display_devices()
         self.desired_profile_filename = None
         self.received_profile = None
-        self.cd.connect("profile-added", self._on_profile_added)
+        GObject.Object.connect(self.cd, "profile-added", self._on_profile_added)
 
     def _get_display_devices(self):
         display_devices = []
