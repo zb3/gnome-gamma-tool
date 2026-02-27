@@ -68,6 +68,50 @@ def generate_vcgt(gamma, color_temperature, contrast, bmin, bmax):
     return vcgt
 
 
+def generate_signature(gamma, temperature, contrast, bmin, bmax):
+    arg_sig_parts = []
+
+    def fmt(val):
+        # Compress to a single value if all channels are identical (e.g. "0.8" instead of "0.8:0.8:0.8")
+        if len(set(val)) == 1:
+            return f"{val[0]:g}"
+        return ":".join(f"{v:g}" for v in val)
+
+    if any(g != 1.0 for g in gamma):
+        arg_sig_parts.append(f"g={fmt(gamma)}")
+
+    if temperature != 6500:
+        arg_sig_parts.append(f"t={temperature}")
+
+    if any(c != 1.0 for c in contrast):
+        arg_sig_parts.append(f"c={fmt(contrast)}")
+
+    if any(b != 0.0 for b in bmin) or any(b != 1.0 for b in bmax):
+        arg_sig_parts.append(f"r=[{fmt(bmin)},{fmt(bmax)}]")
+
+    return " ".join(arg_sig_parts) if arg_sig_parts else "neutral"
+
+
+def create_profile_data(profile_data, gamma, temperature, contrast, bmin, bmax):
+    if not profile_data:
+        profile_data = Colord.Icc.new()
+        profile_data.create_default()
+
+    signature = generate_signature(gamma, temperature, contrast, bmin, bmax)
+
+    title = f"gamma-tool: {signature}"
+    profile_data.set_description("", title)
+    profile_data.set_model("", title)
+
+    unique_id = str(uuid.uuid4())
+    profile_data.add_metadata("uuid", unique_id)  # to make checksum unique
+
+    vcgt = generate_vcgt(gamma, temperature, contrast, bmin, bmax)
+    profile_data.set_vcgt(vcgt)
+
+    return profile_data, unique_id
+
+
 def float_per_color(arg, fit=False):
     if ":" not in arg:
         arg = f"{arg}:{arg}:{arg}"
@@ -158,26 +202,12 @@ examples:
 
     args = parser.parse_args()
 
-    arg_sig_parts = []
-
-    if args.gamma != "1":
-        arg_sig_parts.append(f"g={args.gamma}")
-
-    if args.temperature != 6500:
-        arg_sig_parts.append(f"t={args.temperature}")
-
-    if args.contrast != "1":
-        arg_sig_parts.append(f"c={args.contrast}")
-
-    if args.min_brightness != "0" or args.brightness != "1":
-        arg_sig_parts.append(f"r=[{args.min_brightness},{args.brightness}]")
-
     args.gamma = float_per_color(args.gamma)
     args.contrast = float_per_color(args.contrast)
     args.min_brightness = float_per_color(args.min_brightness, fit=True)
     args.brightness = float_per_color(args.brightness, fit=True)
 
-    return args, " ".join(arg_sig_parts)
+    return args
 
 
 def ensure_not_running():
@@ -229,12 +259,13 @@ class ProfileMgr:
     def __init__(self):
         self.cd = Colord.Client()
         self.cd.connect_sync()
-        self.devices = self.get_display_devices()
+        self.devices = self._fetch_display_devices()
         self.desired_profile_filename = None
         self.received_profile = None
+        self.cdd = None
         super(GObject.Object, self.cd).connect('profile-added', self.on_profile_added)
 
-    def get_display_devices(self):
+    def _fetch_display_devices(self):
         all_devices = self.cd.get_devices_sync()
         display_devices = []
 
@@ -245,6 +276,16 @@ class ProfileMgr:
                 display_devices.append(device)
 
         return display_devices
+
+    def get_display_devices(self):
+        return self.devices
+
+    def get_device_names(self):
+        names = []
+        for i, device in enumerate(self.devices):
+            name = ' '.join(filter(None, [device.get_vendor(), device.get_model()])) or f"Display {i}"
+            names.append(name)
+        return names
 
     def get_device_count(self):
         return len(self.devices)
@@ -342,33 +383,8 @@ class ProfileMgr:
     def set_device_enabled(self, enabled):
         self.cdd.set_enabled_sync(enabled)
 
-
-def create_profile_data(profile_data, arg_signature, args):
-    if not profile_data:
-        profile_data = Colord.Icc.new()
-        profile_data.create_default()
-
-    title = "gamma-tool: %s" % arg_signature
-    profile_data.set_description("", title)
-    profile_data.set_model("", title)
-
-    unique_id = str(uuid.uuid4())
-    profile_data.add_metadata("uuid", unique_id)  # to make checksum unique
-
-    vcgt = generate_vcgt(
-        args.gamma,
-        args.temperature,
-        args.contrast,
-        args.min_brightness,
-        args.brightness,
-    )
-    profile_data.set_vcgt(vcgt)
-
-    return profile_data, unique_id
-
-
 def main():
-    args, arg_signature = parse_args()
+    args = parse_args()
 
     if args.yes and not ensure_not_running():
         exit("gnome-gamma-tool is already running")
@@ -382,7 +398,15 @@ def main():
             profile_data = Colord.Icc.new()
             Colord.Icc.load_file(profile_data, icc_file, Colord.IccLoadFlags.ALL, None)
 
-        profile_data, _ = create_profile_data(profile_data, arg_signature, args)
+        profile_data, _ = create_profile_data(
+            profile_data,
+            args.gamma,
+            args.temperature,
+            args.contrast,
+            args.min_brightness,
+            args.brightness
+        )
+
         profile_data.save_file(
             Gio.File.new_for_path(args.out_file), Colord.IccSaveFlags.NONE, None
         )
@@ -422,7 +446,14 @@ def main():
                 mgr.remove_profile(base_profile)
 
         else:
-            profile_data, unique_id = create_profile_data(base_profile.load_icc(0), arg_signature, args)
+            profile_data, unique_id = create_profile_data(
+                base_profile.load_icc(0),
+                args.gamma,
+                args.temperature,
+                args.contrast,
+                args.min_brightness,
+                args.brightness
+            )
 
             new_profile = mgr.new_profile_with_name(profile_data, OUR_PREFIX + unique_id + '.icc')
             print("New profile is", new_profile.get_filename())
