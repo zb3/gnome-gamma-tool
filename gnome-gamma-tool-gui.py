@@ -262,6 +262,7 @@ class ChannelGroup(Gtk.Box):
         self._g_row = SliderRow("Green", min_val, max_val, default, step, digits)
         self._b_row = SliderRow("Blue", min_val, max_val, default, step, digits)
         for row in (self._r_row, self._g_row, self._b_row):
+            row.show_all() # need to show all children first, then hide the parent
             row.set_no_show_all(True)
             row.hide()
             self.pack_start(row, False, False, 0)
