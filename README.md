@@ -114,7 +114,7 @@ If you just want to create an ICC profile with the proper VCGT table but without
 
 You can then import and apply it using a tool like `colormgr`.
 
-```
+```shell
 # Create myprofile.icc file
 python3 ./gnome-gamma-tool.py --min-brightness 0.05 --brightness 0.95 --out-file myprofile.icc
 
@@ -133,7 +133,7 @@ colormgr delete-profile $profileId
 
 ## How it works
 
-Mutter (GNOME's compositor) does not implement any Wayland protocols that could help, so tools like `gammastep` or `wl-gammactl` won't work. Mutter, however, exposes the `SetCrtcGamma` method via D-Bus, and that method really works. Yet it's not how gnome-gamma-tool achieves it's purpose because:
+Mutter (GNOME's compositor) does not implement any Wayland protocols that could help, so tools like `gammastep` or `wl-gammactl` won't work. Mutter, however, exposes the `SetCrtcGamma` method via D-Bus, and that method really works. Yet it's not how gnome-gamma-tool achieves its purpose because:
 * the value is not saved anywhere so the effect is not persistent
 * this method is already called by another daemon, so the effect is only temporary.
 
