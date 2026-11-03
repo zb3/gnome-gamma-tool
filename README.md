@@ -36,6 +36,13 @@ Then you can invoke the tool like this:
 
 Once the new profile is installed, this tool can be safely removed.
 
+### Graphical interface
+If you'd rather not use the command line, there's also a GTK3 GUI that exposes gamma, color temperature, contrast and brightness as sliders (with optional per-channel R/G/B control), display selection and Apply/Remove/Reset actions:
+```
+./gnome-gamma-tool-gui.py
+```
+It reuses the same color profile logic as the CLI, so everything described below applies there too.
+
 
 ### Adjusting screen gamma
 The `-g` argument let's you specify the gamma correction factor. You can also use the `R:G:B` form to set it for individual channels.
