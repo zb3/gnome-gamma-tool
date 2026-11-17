@@ -34,12 +34,12 @@ Then you can invoke the tool like this:
 ```
 (if this doesn't work, please open a new issue [here](https://github.com/zb3/gnome-gamma-tool/issues/new))
 
+Once the new profile is installed, this tool can be safely removed.
+
 Running the tool without any arguments shows the settings it currently applies to each display (if the active profile was created by this tool), along with a command that reproduces them:
 ```
 ./gnome-gamma-tool.py
 ```
-
-Once the new profile is installed, this tool can be safely removed.
 
 ### Graphical interface
 If you'd rather not use the command line, there's also a GTK3 GUI that exposes gamma, color temperature, contrast and brightness as sliders (with optional per-channel R/G/B control), display selection and Apply/Remove/Reset actions:
