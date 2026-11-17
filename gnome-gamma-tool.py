@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import re
 import time
 import gi
 import sys
@@ -68,26 +69,27 @@ def generate_vcgt(gamma, color_temperature, contrast, bmin, bmax):
     return vcgt
 
 
+def format_triple(val):
+    # Compress to a single value if all channels are identical (e.g. "0.8" instead of "0.8:0.8:0.8")
+    if len(set(val)) == 1:
+        return f"{val[0]:g}"
+    return ":".join(f"{v:g}" for v in val)
+
+
 def generate_signature(gamma, temperature, contrast, bmin, bmax):
     arg_sig_parts = []
 
-    def fmt(val):
-        # Compress to a single value if all channels are identical (e.g. "0.8" instead of "0.8:0.8:0.8")
-        if len(set(val)) == 1:
-            return f"{val[0]:g}"
-        return ":".join(f"{v:g}" for v in val)
-
     if any(g != 1.0 for g in gamma):
-        arg_sig_parts.append(f"g={fmt(gamma)}")
+        arg_sig_parts.append(f"g={format_triple(gamma)}")
 
     if temperature != 6500:
         arg_sig_parts.append(f"t={temperature}")
 
     if any(c != 1.0 for c in contrast):
-        arg_sig_parts.append(f"c={fmt(contrast)}")
+        arg_sig_parts.append(f"c={format_triple(contrast)}")
 
     if any(b != 0.0 for b in bmin) or any(b != 1.0 for b in bmax):
-        arg_sig_parts.append(f"r=[{fmt(bmin)},{fmt(bmax)}]")
+        arg_sig_parts.append(f"r=[{format_triple(bmin)},{format_triple(bmax)}]")
 
     return " ".join(arg_sig_parts) if arg_sig_parts else "neutral"
 
@@ -124,11 +126,66 @@ def float_per_color(arg, fit=False):
     return val
 
 
+def parse_signature(sig):
+    """Parse a 'gamma-tool:' signature back into control values.
+
+    Returns (gamma, temperature, contrast, bmin, bmax). Unknown / "neutral"
+    signatures fall back to neutral defaults.
+    """
+    gamma = [1.0, 1.0, 1.0]
+    temperature = 6500
+    contrast = [1.0, 1.0, 1.0]
+    bmin = [0.0, 0.0, 0.0]
+    bmax = [1.0, 1.0, 1.0]
+
+    if not sig or sig == "neutral":
+        return gamma, temperature, contrast, bmin, bmax
+
+    # Brightness range token r=[min,max] contains a comma, parse it out first.
+    mr = re.search(r"r=\[([^,]+),([^\]]+)\]", sig)
+    if mr:
+        try:
+            bmin = float_per_color(mr.group(1))
+            bmax = float_per_color(mr.group(2))
+        except ValueError:
+            pass
+        sig = sig[: mr.start()] + sig[mr.end() :]
+
+    for tok in sig.split():
+        try:
+            if tok.startswith("g="):
+                gamma = float_per_color(tok[2:])
+            elif tok.startswith("t="):
+                temperature = int(float(tok[2:]))
+            elif tok.startswith("c="):
+                contrast = float_per_color(tok[2:])
+        except ValueError:
+            pass
+
+    return gamma, temperature, contrast, bmin, bmax
+
+
+def get_current_signature(profile):
+    """Return the signature of a profile created by this tool, or None."""
+    title = None
+    try:
+        title = profile.get_title()
+    except Exception:
+        pass
+
+    if not title or not title.startswith("gamma-tool:"):
+        return None
+
+    return title.split(":", 1)[1].strip()
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         epilog=f"""for gamma, contrast and brightness levels you can use the form R:G:B to set these values for individual channels.
 
 use the "--arg=value" form if you get the "expected one argument" error
+
+run without arguments to show the values currently set by this tool for each display
 
 examples:
 {sys.argv[0]} -g 0.8
@@ -196,11 +253,8 @@ examples:
         default=None,
     )
 
-    if len(sys.argv) < 2:
-        parser.print_help()
-        sys.exit(2)
-
     args = parser.parse_args()
+    args.show = len(sys.argv) < 2
 
     args.gamma = float_per_color(args.gamma)
     args.contrast = float_per_color(args.contrast)
@@ -383,8 +437,81 @@ class ProfileMgr:
     def set_device_enabled(self, enabled):
         self.cdd.set_enabled_sync(enabled)
 
+
+def build_set_command(display_idx, display_count, gamma, temperature, contrast, bmin, bmax):
+    parts = [sys.argv[0]]
+
+    if display_count > 1:
+        parts.append(f"-d {display_idx}")
+
+    options = []
+
+    if any(g != 1.0 for g in gamma):
+        options.append(f"-g {format_triple(gamma)}")
+
+    if temperature != 6500:
+        options.append(f"-t {temperature}")
+
+    if any(c != 1.0 for c in contrast):
+        options.append(f"-c {format_triple(contrast)}")
+
+    if any(b != 0.0 for b in bmin) or any(b != 1.0 for b in bmax):
+        options.append(f"-b {format_triple(bmax)}")
+        options.append(f"-bm {format_triple(bmin)}")
+
+    if not options:
+        # neutral profile, the command still needs at least one explicit value
+        options.append("-g 1")
+
+    return " ".join(parts + options)
+
+
+def show_current_values():
+    mgr = ProfileMgr()
+    display_count = mgr.get_device_count()
+
+    if not display_count:
+        print("No display devices found.")
+        return
+
+    names = mgr.get_device_names()
+
+    for display_idx in range(display_count):
+        mgr.connect(display_idx)
+        print(f"Display {display_idx}: {names[display_idx]}")
+
+        profile = mgr.get_current_profile()
+        sig = get_current_signature(profile) if profile else None
+
+        if sig is None:
+            print("  current profile was not created by gnome-gamma-tool")
+            if profile:
+                print(f"  current profile: {profile.get_filename() or profile.get_id()}")
+            print()
+            continue
+
+        gamma, temperature, contrast, bmin, bmax = parse_signature(sig)
+
+        print(f"  gamma: {format_triple(gamma)}")
+        print(f"  temperature: {temperature} K")
+        print(f"  contrast: {format_triple(contrast)}")
+        print(f"  brightness: {format_triple(bmax)}")
+        print(f"  min brightness: {format_triple(bmin)}")
+        print(
+            "  set with: "
+            + build_set_command(
+                display_idx, display_count, gamma, temperature, contrast, bmin, bmax
+            )
+        )
+        print()
+
+
 def main():
     args = parse_args()
+
+    if args.show:
+        show_current_values()
+        return
 
     if args.yes and not ensure_not_running():
         exit("gnome-gamma-tool is already running")

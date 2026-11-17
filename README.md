@@ -30,9 +30,14 @@ if you're using NixOS, check [this comment](https://github.com/zb3/gnome-gamma-t
 
 Then you can invoke the tool like this:
 ```
-./gnome-gamma-tool.py
+./gnome-gamma-tool.py -g 0.8
 ```
 (if this doesn't work, please open a new issue [here](https://github.com/zb3/gnome-gamma-tool/issues/new))
+
+Running the tool without any arguments shows the settings it currently applies to each display (if the active profile was created by this tool), along with a command that reproduces them:
+```
+./gnome-gamma-tool.py
+```
 
 Once the new profile is installed, this tool can be safely removed.
 

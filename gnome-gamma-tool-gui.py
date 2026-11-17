@@ -6,7 +6,6 @@ being duplicated here; this module only builds the GTK interface on top of it.
 """
 
 import os
-import re
 import sys
 
 import gi
@@ -40,55 +39,6 @@ if COLORD_AVAILABLE:
 
 OUR_PREFIX = ggt.OUR_PREFIX if ggt else "gnome-gamma-tool-"
 REVERT_SECONDS = 10
-
-
-# ---------------------------------------------------------------------------
-# Signature parsing (inverse of ggt.generate_signature)
-# ---------------------------------------------------------------------------
-def _triple(text):
-    parts = text.split(":")
-    if len(parts) == 1:
-        return [float(parts[0])] * 3
-    return [float(p) for p in parts]
-
-
-def parse_signature(sig):
-    """Parse a 'gamma-tool:' signature back into control values.
-
-    Returns (gamma, temperature, contrast, bmin, bmax). Unknown / "neutral"
-    signatures fall back to neutral defaults.
-    """
-    gamma = [1.0, 1.0, 1.0]
-    temperature = 6500
-    contrast = [1.0, 1.0, 1.0]
-    bmin = [0.0, 0.0, 0.0]
-    bmax = [1.0, 1.0, 1.0]
-
-    if not sig or sig == "neutral":
-        return gamma, temperature, contrast, bmin, bmax
-
-    # Brightness range token r=[min,max] contains a comma, parse it out first.
-    mr = re.search(r"r=\[([^,]+),([^\]]+)\]", sig)
-    if mr:
-        try:
-            bmin = _triple(mr.group(1))
-            bmax = _triple(mr.group(2))
-        except ValueError:
-            pass
-        sig = sig[: mr.start()] + sig[mr.end() :]
-
-    for tok in sig.split():
-        try:
-            if tok.startswith("g="):
-                gamma = _triple(tok[2:])
-            elif tok.startswith("t="):
-                temperature = int(float(tok[2:]))
-            elif tok.startswith("c="):
-                contrast = _triple(tok[2:])
-        except ValueError:
-            pass
-
-    return gamma, temperature, contrast, bmin, bmax
 
 
 # ---------------------------------------------------------------------------
@@ -396,20 +346,16 @@ class GammaToolWindow(Gtk.ApplicationWindow):
         if idx < 0 or not self._ready:
             return
 
-        title = None
+        sig = None
         try:
             mgr = self._new_manager(idx)
             profile = mgr.get_current_profile()
             if profile:
-                title = profile.get_title()
+                sig = ggt.get_current_signature(profile)
         except Exception:
-            title = None
+            sig = None
 
-        sig = None
-        if title and title.startswith("gamma-tool:"):
-            sig = title.split(":", 1)[1].strip()
-
-        gamma, temperature, contrast, bmin, bmax = parse_signature(sig)
+        gamma, temperature, contrast, bmin, bmax = ggt.parse_signature(sig)
         self._gamma_grp.set_values(gamma)
         self._contrast_grp.set_values(contrast)
         self._bmin_grp.set_values(bmin)
